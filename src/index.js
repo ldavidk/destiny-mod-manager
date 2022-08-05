@@ -1,12 +1,25 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+// import {useSearchParams} from 'react-router-dom';
 import './index.css';
 import Keys from './keys.json';
+import Vendors from './hashes.json'
 
 const url = "https://www.bungie.net/platform/Destiny/Manifest/InventoryItem/1274330687/";
 
 class Vendor extends React.Component {
+	constructor(props) {
+		super(props);
+		this.state = {};
+	}
 
+	render() {
+		return (
+			<div>
+				
+			</div>
+		);
+	}
 }
 
 class ModPreview extends React.Component {
@@ -21,7 +34,7 @@ class AuthDialog extends React.Component {
 
 	constructLink() {
 		const linkStr = Keys.authURL+"?client_id="+Keys.oauthClientID+"&response_type=code";
-		console.log("constructed link: %s", linkStr);
+		// console.log("constructed link: %s", linkStr);
 		return linkStr;
 	}
 
@@ -47,21 +60,72 @@ class SiteContainer extends React.Component {
 	}
 
 	componentDidMount() {
-		this.fetchData();
-		this.checkForAuth()
+		this.fetchData(); //Sanity public fetch
+		this.checkForAuth();
+		
+		// this.queryVendors();
 	}
 
 	checkForAuth() {
-		let authCode = undefined;
-		if(window.location.href.includes("code=")) {
-			this.setState({isAuthenticated: true});
-			authCode = window.location.href;
-			console.log("location href %s", authCode);
-			let codeLoc = authCode.indexOf("code=");
-			authCode = authCode.substring(codeLoc + 5)
-			console.log("extracted code %s", authCode)
-			this.setState({ authCode: authCode });
+		let isAuth = (window.localStorage.getItem('isAuthenticated') === 'true');
+		this.setState({isAuthenticated: isAuth});
+		console.log(isAuth)
+		if(!isAuth) {
+			if(window.location.href.includes("code=")) {
+				let authCode = window.location.href;
+				// console.log("location href %s", authCode);
+				let codeLoc = authCode.indexOf("code=");
+				authCode = authCode.substring(codeLoc + 5)
+				console.log("extracted code %s", authCode)
+				this.setState({ authCode: authCode });
+				this.fetchAuthToken(authCode)
+			}
 		}
+	}
+
+	createFormParams = (params) => {
+		return Object.keys(params)
+			.map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+			.join('&')
+	}
+
+	fetchAuthToken(authCode) {
+		let tokenHeaders = new Headers();
+		var X = window.btoa(`${Keys.oauthClientID}:${Keys.oauthClientSecret}`)
+		tokenHeaders.append("x-api-key", Keys.apiKey);
+		tokenHeaders.append("Content-Type", 'application/x-www-form-urlencoded');
+		tokenHeaders.append("Authorization", "Basic " + X);
+
+		// console.log(X);
+		// console.log("AuthCode: %s", authCode)
+
+		fetch(Keys.tokenURL, {
+			method: 'POST',
+			headers: tokenHeaders,
+			body: new URLSearchParams({
+				'client_id': Keys.oauthClientID,
+				'grant_type': 'authorization_code',
+				'code': authCode
+			}).toString()
+		}).then(this.handleErrors)
+		.then(response => response.json())
+		.then(result => {
+			console.log("Token Fetch Result:");
+			console.log(result);
+			window.localStorage.setItem('accessToken', result.access_token);
+			window.localStorage.setItem('refreshToken', result.refresh_token);
+			window.localStorage.setItem('isAuthenticated', true);
+			window.location.replace("/")
+			// console.log(window.localStorage.getItem('accessToken'));
+		})
+		.catch(error => console.log("Error ", error));
+	}
+
+	handleErrors(response) { //TODO make me actually work
+		if (!response.ok) {
+			throw Error(response.statusText);
+		}
+		return response;
 	}
 
 	fetchData() {
@@ -84,11 +148,24 @@ class SiteContainer extends React.Component {
 			.catch(error => console.log('error', error));
 	}
 
+	getVendors() {
+		const vendorList = Vendors.Vendors;
+		return vendorList;
+	}
+
 	render() {
+		let vendorList = this.getVendors();
+		let vendors = [];
+		for (var i = 0; i < vendorList.length; i++) {
+			vendors.push(<Vendor vendorInfo={vendorList[i]} key={i}/>)
+		}
 		return (
 			<div>
 				<div>
 					<h1>{this.state.apiResults}!</h1>
+				</div>
+				<div className='vendor-container'>
+					{vendors}
 				</div>
 				{!this.state.isAuthenticated && 
 					<div>

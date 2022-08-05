@@ -1,3 +1,10 @@
 {
-    "adaHash": 350061650 
+    "Vendors": [
+        {
+            "vendorName": "Ada-1",
+            "vendorHash": "350061650"
+        }
+    ]
 }
+
+
