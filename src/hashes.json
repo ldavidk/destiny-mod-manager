@@ -2,7 +2,11 @@
     "Vendors": [
         {
             "vendorName": "Ada-1",
-            "vendorHash": "350061650"
+            "vendorHash": 350061650
+        },
+        {
+            "vendorName": "Banshee-44",
+            "vendorHash": 672118013
         }
     ]
 }

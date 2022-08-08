@@ -1,52 +1,38 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-// import {useSearchParams} from 'react-router-dom';
 import './index.css';
 import Keys from './keys.json';
 import Vendors from './hashes.json'
+import AuthDialog from './authDialog.jsx'
+import Vendor from './vendor'
 
 const url = "https://www.bungie.net/platform/Destiny/Manifest/InventoryItem/1274330687/";
-
-class Vendor extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {};
-	}
-
-	render() {
-		return (
-			<div>
-				
-			</div>
-		);
-	}
-}
 
 class ModPreview extends React.Component {
 
 }
 
-class AuthDialog extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {};
-	}
+// class AuthDialog extends React.Component {
+// 	constructor(props) {
+// 		super(props);
+// 		this.state = {};
+// 	}
 
-	constructLink() {
-		const linkStr = Keys.authURL+"?client_id="+Keys.oauthClientID+"&response_type=code";
-		// console.log("constructed link: %s", linkStr);
-		return linkStr;
-	}
+// 	constructLink() {
+// 		const linkStr = Keys.authURL+"?client_id="+Keys.oauthClientID+"&response_type=code";
+// 		// console.log("constructed link: %s", linkStr);
+// 		return linkStr;
+// 	}
 
-	render() {
-		return (
-			<div>
-				<h2>Click here to Authorize with Bungie before retreiving mod info :D</h2>
-				<a href={this.constructLink()}>Authorize</a>
-			</div>
-		);
-	}
-}
+// 	render() {
+// 		return (
+// 			<div>
+// 				<h2>Click here to Authorize with Bungie before retreiving mod info :D</h2>
+// 				<a href={this.constructLink()}>Authorize</a>
+// 			</div>
+// 		);
+// 	}
+// }
 
 class SiteContainer extends React.Component {
 
@@ -62,31 +48,30 @@ class SiteContainer extends React.Component {
 	componentDidMount() {
 		this.fetchData(); //Sanity public fetch
 		this.checkForAuth();
-		
+		// window.localStorage.clear();
 		// this.queryVendors();
 	}
 
 	checkForAuth() {
 		let isAuth = (window.localStorage.getItem('isAuthenticated') === 'true');
 		this.setState({isAuthenticated: isAuth});
-		console.log(isAuth)
-		if(!isAuth) {
-			if(window.location.href.includes("code=")) {
-				let authCode = window.location.href;
-				// console.log("location href %s", authCode);
-				let codeLoc = authCode.indexOf("code=");
-				authCode = authCode.substring(codeLoc + 5)
-				console.log("extracted code %s", authCode)
-				this.setState({ authCode: authCode });
-				this.fetchAuthToken(authCode)
+		console.log(isAuth);
+		let accessTimestamp = parseInt(window.localStorage.getItem('accessTokenTimestamp'));
+		if (accessTimestamp > Date.now() + 3000) {
+			this.refreshToken()
+		} else {
+			if(!isAuth) {
+				if(window.location.href.includes("code=")) {
+					let authCode = window.location.href;
+					// console.log("location href %s", authCode);
+					let codeLoc = authCode.indexOf("code=");
+					authCode = authCode.substring(codeLoc + 5)
+					console.log("extracted code %s", authCode)
+					this.setState({ authCode: authCode });
+					this.fetchAuthToken(authCode)
+				}
 			}
 		}
-	}
-
-	createFormParams = (params) => {
-		return Object.keys(params)
-			.map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
-			.join('&')
 	}
 
 	fetchAuthToken(authCode) {
@@ -112,13 +97,43 @@ class SiteContainer extends React.Component {
 		.then(result => {
 			console.log("Token Fetch Result:");
 			console.log(result);
-			window.localStorage.setItem('accessToken', result.access_token);
-			window.localStorage.setItem('refreshToken', result.refresh_token);
-			window.localStorage.setItem('isAuthenticated', true);
+			this.storeAuthParams(result);
 			window.location.replace("/")
-			// console.log(window.localStorage.getItem('accessToken'));
 		})
 		.catch(error => console.log("Error ", error));
+	}
+
+	refreshToken() {
+		let refreshHeaders = new Headers();
+		var X = window.btoa(`${Keys.oauthClientID}:${Keys.oauthClientSecret}`)
+		refreshHeaders.append("x-api-key", Keys.apiKey);
+		refreshHeaders.append("Content-Type", 'application/x-www-form-urlencoded');
+		refreshHeaders.append("Authorization", "Basic " + X)
+
+		let refreshToken = window.localStorage.getItem('refreshToken') 
+
+		fetch(Keys.tokenURL, {
+			method: 'POST',
+			headers: refreshHeaders,
+			body: new URLSearchParams({
+				'grant_type': 'refresh_token',
+				'refresh_token': refreshToken
+			}).toString()
+		}).then(this.handleErrors)
+		.then(response => response.json())
+		.then(result => {
+			console.log("Refresh Results:");
+			console.log(result);
+			this.storeAuthParams(result);
+		})
+		.catch(error => console.log("Error ", error));
+	}
+
+	storeAuthParams(result) {
+		window.localStorage.setItem('accessToken', result.access_token);
+		window.localStorage.setItem('accessTokenTimestamp', Date.now());
+		window.localStorage.setItem('refreshToken', result.refresh_token);
+		window.localStorage.setItem('isAuthenticated', true);
 	}
 
 	handleErrors(response) { //TODO make me actually work
@@ -164,9 +179,11 @@ class SiteContainer extends React.Component {
 				<div>
 					<h1>{this.state.apiResults}!</h1>
 				</div>
-				<div className='vendor-container'>
+				{this.state.isAuthenticated &&
+					<div className='vendor-container'>
 					{vendors}
 				</div>
+				}
 				{!this.state.isAuthenticated && 
 					<div>
 						<AuthDialog></AuthDialog>
