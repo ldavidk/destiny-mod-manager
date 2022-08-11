@@ -2,15 +2,15 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import Keys from './keys.json';
-import Vendors from './hashes.json'
 import AuthDialog from './authDialog.jsx'
-import Vendor from './vendor'
+import Ada1 from './Vendors/ada1'
+import Banshee44 from './Vendors/banshee44';
 
 const url = "https://www.bungie.net/platform/Destiny/Manifest/InventoryItem/1274330687/";
 
-class ModPreview extends React.Component {
+// class ModPreview extends React.Component {
 
-}
+// }
 
 class SiteContainer extends React.Component {
 
@@ -29,10 +29,9 @@ class SiteContainer extends React.Component {
 		//this.fetchData(); //Sanity public fetch
 		this.checkForAuth();
 		this.refreshToken();
-		this.getMembershipInfo();
-		this.getCharacterInfo();
+		// this.getMembershipInfo();
+		// this.getCharacterInfo();
 		// window.localStorage.clear();
-		// this.queryVendors();
 	}
 
 	checkForAuth() {
@@ -81,7 +80,7 @@ class SiteContainer extends React.Component {
 			console.log("Token Fetch Result:");
 			console.log(result);
 			this.storeAuthParams(result);
-			this.getMemberships();
+			this.getMembershipInfo();
 		})
 		.catch(error => console.log("Error ", error));
 	}
@@ -115,6 +114,7 @@ class SiteContainer extends React.Component {
 			{
 				window.localStorage.setItem('destinyMembershipID', mID);
 				window.localStorage.setItem('destinyMembershipType', mType);
+				this.getCharacterInfo();
 			} else 
 			{
 				throw Error("Could not find membershipInfo")
@@ -217,17 +217,12 @@ class SiteContainer extends React.Component {
 			.catch(error => console.log('error', error));
 	}
 
-	getVendors() {
-		const vendorList = Vendors.Vendors;
-		return vendorList;
-	}
-
 	render() {
-		let vendorList = this.getVendors();
-		let vendors = [];
-		for (var i = 0; i < vendorList.length; i++) {
-			vendors.push(<Vendor vendorInfo={vendorList[i]} key={i}/>)
-		}
+		// let vendorList = this.getVendors();
+		// let vendors = [];
+		// for (var i = 0; i < vendorList.length; i++) {
+		// 	vendors.push(<Vendor vendorInfo={vendorList[i]} key={i}/>)
+		// }
 		return (
 			<div>
 				{/* <div>
@@ -241,7 +236,10 @@ class SiteContainer extends React.Component {
 							<img src={this.state.emblemPath} alt="your card, fuckboy"></img>
 						</div>
 						<div className='vendor-container'>
-							{vendors}
+							<Ada1></Ada1>
+						</div>
+						<div className='vendor-container'>
+							<Banshee44></Banshee44>
 						</div>
 					</div>
 				}
