@@ -12,28 +12,6 @@ class ModPreview extends React.Component {
 
 }
 
-// class AuthDialog extends React.Component {
-// 	constructor(props) {
-// 		super(props);
-// 		this.state = {};
-// 	}
-
-// 	constructLink() {
-// 		const linkStr = Keys.authURL+"?client_id="+Keys.oauthClientID+"&response_type=code";
-// 		// console.log("constructed link: %s", linkStr);
-// 		return linkStr;
-// 	}
-
-// 	render() {
-// 		return (
-// 			<div>
-// 				<h2>Click here to Authorize with Bungie before retreiving mod info :D</h2>
-// 				<a href={this.constructLink()}>Authorize</a>
-// 			</div>
-// 		);
-// 	}
-// }
-
 class SiteContainer extends React.Component {
 
 	constructor(props) {
@@ -41,13 +19,18 @@ class SiteContainer extends React.Component {
 		this.state = {
 			apiResults: "",
 			authCode: "",
-			isAuthenticated: false
+			isAuthenticated: false,
+			username: "",
+			emblemPath: ""
 		};
 	}
 
 	componentDidMount() {
-		this.fetchData(); //Sanity public fetch
+		//this.fetchData(); //Sanity public fetch
 		this.checkForAuth();
+		this.refreshToken();
+		this.getMembershipInfo();
+		this.getCharacterInfo();
 		// window.localStorage.clear();
 		// this.queryVendors();
 	}
@@ -98,12 +81,82 @@ class SiteContainer extends React.Component {
 			console.log("Token Fetch Result:");
 			console.log(result);
 			this.storeAuthParams(result);
-			window.location.replace("/")
+			this.getMemberships();
 		})
 		.catch(error => console.log("Error ", error));
 	}
 
+	getMembershipInfo() {
+		const headers = new Headers();
+		headers.append("x-api-key", Keys.apiKey);
+		headers.append("Authorization", "Bearer " + window.localStorage.getItem('accessToken'));
+
+		const reqURL = "https://www.bungie.net/Platform/User/GetMembershipsById/"+ window.localStorage.getItem('bngMembershipID') +"/254/"
+
+		fetch(reqURL, {
+			method: 'GET',
+			headers: headers,
+		}).then(this.handleErrors)
+		.then(response => response.json())
+		.then(result => {
+			console.log("Get Membership Result:");
+			console.log(result);
+			this.setState({ username: result.Response.bungieNetUser.uniqueName })
+			const primaryMembershipID = result.Response.primaryMembershipId;
+			console.log(primaryMembershipID)
+			let mID, mType = "";
+			result.Response.destinyMemberships.forEach(membership => {
+				if(membership.membershipId === primaryMembershipID) {
+					mID = primaryMembershipID;
+					mType = membership.membershipType;
+				}
+			});
+			if (mID !== "" && mType !== "") 
+			{
+				window.localStorage.setItem('destinyMembershipID', mID);
+				window.localStorage.setItem('destinyMembershipType', mType);
+			} else 
+			{
+				throw Error("Could not find membershipInfo")
+			}			
+		})
+		.catch(error => console.log("Error ", error));
+	}
+
+	getCharacterInfo() {
+		const mID = window.localStorage.getItem("destinyMembershipID");
+		const mType = window.localStorage.getItem("destinyMembershipType");
+
+		if(mID === null || mType === null) {
+			console.log("Error: Reached getCharaterInfo missing membershipInfo");
+			return
+		} else {
+			const headers = new Headers();
+			headers.append("x-api-key", Keys.apiKey);
+			headers.append("Authorization", "Bearer " + window.localStorage.getItem('accessToken'));
+		
+			const reqURL = "https://www.bungie.net/Platform/Destiny2/" + mType + "/Profile/" + mID + "/?components=200"
+		
+			fetch(reqURL, {
+				method: 'GET',
+				headers: headers,
+			}).then(this.handleErrors)
+			.then(response => response.json())
+			.then(result => {
+				console.log("GetProfile Result:");
+				console.log(result);
+				const data = result.Response.characters.data;
+				const firstChar = data[Object.keys(data)[0]];
+				console.log(firstChar);
+				window.localStorage.setItem('characterID', firstChar.characterId);
+				this.setState({ emblemPath: "https://www.bungie.net/" + firstChar.emblemBackgroundPath});	
+			})
+			.catch(error => console.log("Error ", error));
+		}
+	}
+
 	refreshToken() {
+		console.log("Refreshing...");
 		let refreshHeaders = new Headers();
 		var X = window.btoa(`${Keys.oauthClientID}:${Keys.oauthClientSecret}`)
 		refreshHeaders.append("x-api-key", Keys.apiKey);
@@ -133,6 +186,7 @@ class SiteContainer extends React.Component {
 		window.localStorage.setItem('accessToken', result.access_token);
 		window.localStorage.setItem('accessTokenTimestamp', Date.now());
 		window.localStorage.setItem('refreshToken', result.refresh_token);
+		window.localStorage.setItem('bngMembershipID', result.membership_id);
 		window.localStorage.setItem('isAuthenticated', true);
 	}
 
@@ -176,13 +230,20 @@ class SiteContainer extends React.Component {
 		}
 		return (
 			<div>
-				<div>
+				{/* <div>
 					<h1>{this.state.apiResults}!</h1>
-				</div>
+				</div> */}
 				{this.state.isAuthenticated &&
-					<div className='vendor-container'>
-					{vendors}
-				</div>
+					<div>
+						<div><h1>Hi, {this.state.username}!</h1></div>
+						<div>
+							<h2>Tada Fuckboy! Is this your card?</h2>
+							<img src={this.state.emblemPath} alt="your card, fuckboy"></img>
+						</div>
+						<div className='vendor-container'>
+							{vendors}
+						</div>
+					</div>
 				}
 				{!this.state.isAuthenticated && 
 					<div>

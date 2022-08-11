@@ -6,10 +6,18 @@ class Vendor extends React.Component {
 		this.state = {};
 	}
 
+	componentDidMount() {
+		this.fetchVendorItems();
+	}
+
+	fetchVendorItems() {
+		
+	}
+
 	render() {
 		return (
 			<div>
-				<h2>{this.props.vendorInfo.vendorName}</h2>
+				<h2>{this.props.vendorInfo.vendorHash} - {this.props.vendorInfo.vendorName}</h2>
 			</div>
 		);
 	}
